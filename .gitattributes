@@ -1,0 +1,4 @@
+*.config.js          linguist-detectable=false
+*.js                 linguist-detectable=false
+.prettierrc          linguist-detectable=false
+*.d.ts               linguist-documentation=true

@@ -1,0 +1,40 @@
+name: "Pull Request"
+description: "Template for submitting changes or new features"
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: "What did you change?"
+      description: "Briefly explain the changes to the PR you made."
+      placeholder: "Example: Fix memory leak in module xyz, or add feature..."
+    validations:
+      required: true
+
+  - type: dropdown
+    id: change_type
+    attributes:
+      label: "Change type"
+      options:
+        - "Fix (Bug/Patch)"
+        - "Feature (New Feature)"
+        - "Refactor (Code Polish)"
+        - "Docs (Documentation)"
+        - "Chore (Build/Maintenance)"
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: "Checklist"
+      options:
+        - label: "I have done tests on this change"
+          required: true
+        - label: "The code is in accordance with the project style guide."
+        - label: "I have updated the documentation if necessary."
+ 
+  - type: input
+    id: issue_link
+    attributes:
+      label: "Link Issue (if any)"
+      placeholder: "Example: Fixes #123"
