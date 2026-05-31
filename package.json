@@ -75,10 +75,5 @@
     "lint-staged": "^17.0.5",
     "prettier": "3.8.3",
     "tsx": "^4.22.3"
-  },
-  "allowScripts": {
-    "esbuild@0.28.0": true,
-    "file:/data/data/com.termux/files/home/unitry/unitry-v0.1.0-alpha.0.tgz": true,
-    "husky@9.1.7": true
   }
 }

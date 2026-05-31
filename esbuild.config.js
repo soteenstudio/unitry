@@ -4,6 +4,7 @@ const builds = [
     entryPoints: ['./src/index.ts'],
     format: 'esm',
     outfile: './dist/index.min.js',
+    banner: { js: '#!/usr/bin/env node' },
   },
   {
     entryPoints: ['./src/core.ts'],
@@ -12,7 +13,7 @@ const builds = [
   },
   {
     entryPoints: ['./src/core.ts'],
-    format: 'esm',
+    format: 'cjs',
     outfile: './dist/core.cjs',
   },
   {

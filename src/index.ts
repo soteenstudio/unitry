@@ -31,14 +31,14 @@ program
   .version('0.1.0')
   .argument('<dir>', 'directory to discover tests')
   .action(async (dir) => {
+    const config = await loadConfig();
     const files = findTestFiles(path.resolve(dir));
 
-    for (const file of files) {
-      const fileName = path.basename(file);
+    const runFile = (file: string) =>
+      new Promise<void>((resolve) => {
+        const fileName = path.basename(file);
+        console.log(`\n${COLORS.bold} PASS ${COLORS.reset} ${fileName}`);
 
-      console.log(`\n${COLORS.bold} PASS ${COLORS.reset} ${fileName}`);
-
-      await new Promise<void>((resolve) => {
         const worker = new Worker(workerPath, {
           workerData: { filePath: file },
         });
@@ -47,7 +47,9 @@ program
           console.error(
             `${COLORS.red}Worker Error: ${err.message}${COLORS.reset}`,
           );
+          resolve();
         });
+
         worker.on('message', (msg) => {
           if (msg.type === 'RESULT') {
             if (msg.status === 'PASS') {
@@ -70,12 +72,24 @@ program
             console.error(
               `  ${COLORS.red}Worker Error: ${msg.message}${COLORS.reset}`,
             );
+            worker.terminate();
+            resolve();
           }
         });
-
-        worker.on('exit', () => resolve());
       });
-    }
+
+    const queue = [...files];
+    const workers = Array(config.concurrency)
+      .fill(null)
+      .map(async () => {
+        while (queue.length > 0) {
+          const file = queue.shift();
+          if (file) await runFile(file);
+        }
+      });
+
+    await Promise.all(workers);
+    console.log(`\n${COLORS.bold}Done!${COLORS.reset}\n`);
   });
 
 function findTestFiles(dir: string): string[] {
@@ -89,6 +103,15 @@ function findTestFiles(dir: string): string[] {
     }
   }
   return results;
+}
+
+async function loadConfig() {
+  const configPath = path.resolve(process.cwd(), 'unitry.config.js');
+  if (fs.existsSync(configPath)) {
+    const config = await import(pathToFileURL(configPath).href);
+    return { concurrency: 2, ...config.default };
+  }
+  return { concurrency: 1 };
 }
 
 program.parse(process.argv);
