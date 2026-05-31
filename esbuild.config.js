@@ -3,7 +3,7 @@ const builds = [
   {
     entryPoints: ['./src/index.ts'],
     format: 'esm',
-    outfile: './dist/index.min.mjs',
+    outfile: './dist/index.min.js',
   },
   {
     entryPoints: ['./src/core.ts'],

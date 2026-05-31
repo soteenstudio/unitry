@@ -1,5 +1,12 @@
-// Copyright 2026 Clay
-// Licensed under the Apache License, Version 2.0
+/**
+ * Copyright 2026 SoTeen Studio
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ */
 
 type TestFn = () => void | Promise<void>;
 
@@ -14,7 +21,13 @@ class Expectation {
 
 export const expect = (actual: any) => new Expectation(actual);
 
-const tests: { name: string; fn: TestFn }[] = [];
+const GLOBAL_TEST_KEY = Symbol.for('unitry.tests');
+
+if (!(globalThis as any)[GLOBAL_TEST_KEY]) {
+  (globalThis as any)[GLOBAL_TEST_KEY] = [];
+}
+
+const tests = (globalThis as any)[GLOBAL_TEST_KEY];
 
 export const test = (name: string, fn: TestFn) => {
   tests.push({ name, fn });

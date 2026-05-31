@@ -29,13 +29,13 @@
     "./package.json": "./package.json"
   },
   "bin": {
-    "unitry": "./dist/index.min.mjs"
+    "unitry": "./dist/index.min.js"
   },
   "files": [
     "./dist/core.js",
     "./dist/core.cjs",
-    "./dist/worker.js.map",
-    "./dist/index.min.mjs",
+    "./dist/worker.js",
+    "./dist/index.min.js",
     "./types"
   ],
   "scripts": {
@@ -78,6 +78,7 @@
   },
   "allowScripts": {
     "esbuild@0.28.0": true,
-    "file:/data/data/com.termux/files/home/unitry/unitry-v0.1.0-alpha.0.tgz": true
+    "file:/data/data/com.termux/files/home/unitry/unitry-v0.1.0-alpha.0.tgz": true,
+    "husky@9.1.7": true
   }
 }
