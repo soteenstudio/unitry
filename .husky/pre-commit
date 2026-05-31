@@ -1,0 +1,2 @@
+npm run check:deps
+npx lint-staged
