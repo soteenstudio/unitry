@@ -98,7 +98,12 @@ function findTestFiles(dir: string): string[] {
     const fullPath = path.join(dir, file);
     if (fs.statSync(fullPath).isDirectory()) {
       results = results.concat(findTestFiles(fullPath));
-    } else if (file.endsWith('.test.ts') || file.endsWith('.test.js')) {
+    } else if (
+      file.endsWith('.test.ts') ||
+      file.endsWith('.test.js') ||
+      file.endsWith('.test.cjs') ||
+      file.endsWith('.test.mjs')
+    ) {
       results.push(fullPath);
     }
   }
