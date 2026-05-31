@@ -9,7 +9,7 @@ const builds = [
   {
     entryPoints: ['./src/core.ts'],
     format: 'esm',
-    outfile: './dist/core.js',
+    outfile: './dist/core.mjs',
   },
   {
     entryPoints: ['./src/core.ts'],

@@ -9,9 +9,28 @@
  */
 
 import { workerData, parentPort } from 'node:worker_threads';
-import { getTests } from './core.js';
-import { pathToFileURL } from 'node:url';
+import { pathToFileURL, fileURLToPath } from 'node:url';
+import path from 'node:path';
+import fs from 'node:fs';
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+const possibleExtensions = ['.mjs', '.js', '.cjs'];
+let corePath = '';
+
+for (const ext of possibleExtensions) {
+  const p = path.join(__dirname, `core${ext}`);
+  if (fs.existsSync(p)) {
+    corePath = p;
+    break;
+  }
+}
+
+if (!corePath) {
+  throw new Error(`CRITICAL: core file not found in ${__dirname}`);
+}
+
+const { getTests } = await import(pathToFileURL(corePath).href);
 async function run() {
   const { filePath } = workerData;
 
