@@ -36,6 +36,47 @@ const isDeepEqual = (a: any, b: any): boolean => {
   return true;
 };
 
+interface MockFunction {
+  (...args: any[]): any;
+  called: boolean;
+  calls: any[][];
+  mockReturnValue: (val: any) => void;
+  mockImplementation: (implementation: (...args: any[]) => any) => void;
+}
+
+export const fn = (
+  defaultImplementation?: (...args: any[]) => any,
+): MockFunction => {
+  let currentImplementation = defaultImplementation || (() => {});
+  let returnValue: any = undefined;
+  let hasCustomReturn = false;
+
+  const mock = (...args: any[]) => {
+    mock.called = true;
+    mock.calls.push(args);
+
+    if (hasCustomReturn) {
+      return returnValue;
+    }
+    return currentImplementation(...args);
+  };
+
+  mock.called = false;
+  mock.calls = [] as any[][];
+
+  mock.mockReturnValue = (val: any) => {
+    returnValue = val;
+    hasCustomReturn = true;
+  };
+
+  mock.mockImplementation = (implementation: (...args: any[]) => any) => {
+    currentImplementation = implementation;
+    hasCustomReturn = false;
+  };
+
+  return mock;
+};
+
 class Expectation<T = any> {
   constructor(
     private actual: T,
@@ -146,10 +187,20 @@ class Expectation<T = any> {
     );
   }
 
-  toHaveBeenCalled(mockFn: { called: boolean }) {
+  toHaveBeenCalled() {
+    const mock = this.actual as any;
     this.assert(
-      mockFn.called,
+      mock && mock.called === true,
       `Expected function ${this.isNot ? 'not ' : ''}to be called.`,
+    );
+  }
+
+  toHaveBeenCalledTimes(times: number) {
+    const mock = this.actual as any;
+    const callCount = mock?.calls?.length || 0;
+    this.assert(
+      callCount === times,
+      `Expected function ${this.isNot ? 'not ' : ''}to be called ${times} times, but was called ${callCount} times.`,
     );
   }
 

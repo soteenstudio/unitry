@@ -1,5 +1,5 @@
 /**
- * Copyright 2026 SoTeen Studio
+ * Copyright 2026
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -34,6 +34,21 @@ declare class Expectation<T = any> {
 }
 export declare const expect: <T>(actual: T) => Expectation<T>;
 export declare const suppressConsole: <R>(fn: () => R) => R extends Promise<any> ? Promise<any> : R;
+export declare const describe: (name: string, fn: () => void) => void;
 export declare const test: (name: string, fn: TestFn) => void;
-export declare const getTests: () => any;
+export declare const getTests: () => {
+    name: string;
+    suiteName: string | null;
+    run: () => Promise<{
+        name: string;
+        suiteName: string | null;
+        passed: boolean;
+        error?: undefined;
+    } | {
+        name: string;
+        suiteName: string | null;
+        passed: boolean;
+        error: any;
+    }>;
+}[];
 export {};
