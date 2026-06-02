@@ -8,7 +8,18 @@
  *     http://www.apache.org/licenses/LICENSE-2.0
  */
 
-type TestFn = () => void | Promise<void>;
+import { workerData, parentPort } from 'node:worker_threads';
+
+interface TestContext {
+  equal: (actual: any, expected: any) => void;
+  fail: (message: string) => void;
+  dock: {
+    anchor: (key: string, data: any) => void;
+    pull: <R = any>(key: string) => R | null;
+  };
+}
+
+type TestFn = (ctx: TestContext) => void | Promise<void>;
 
 interface TestDefinition {
   name: string;
@@ -310,24 +321,47 @@ export const test = (name: string, fn: TestFn) => {
 };
 
 export const getTests = () => {
-  return rawTests.map((t) => ({
+  const clonedTests = [...rawTests];
+
+  rawTests.length = 0;
+
+  return clonedTests.map((t) => ({
     name: t.name,
     suiteName: t.suiteName,
     run: async () => {
+      const initialDockStore = workerData?.dockStore || {};
+
+      const context: TestContext = {
+        equal: (actual: any, expected: any) => {
+          if (!isDeepEqual(actual, expected)) {
+            throw new Error(
+              `Expected ${JSON.stringify(expected)}, but got ${JSON.stringify(actual)}`,
+            );
+          }
+        },
+        fail: (message: string) => {
+          throw new Error(message);
+        },
+        dock: {
+          anchor: (key: string, data: any) => {
+            parentPort?.postMessage({
+              type: 'DOCK_ANCHOR',
+              key,
+              data,
+            });
+            initialDockStore[key] = data;
+          },
+          pull: <R = any>(key: string): R | null => {
+            return (initialDockStore[key] as R) || null;
+          },
+        },
+      };
+
       try {
-        await t.fn();
-        return {
-          name: t.name,
-          suiteName: t.suiteName,
-          passed: true,
-        };
+        await t.fn(context);
+        return { passed: true, error: null };
       } catch (err: any) {
-        return {
-          name: t.name,
-          suiteName: t.suiteName,
-          passed: false,
-          error: err.message,
-        };
+        return { passed: false, error: err.message || String(err) };
       }
     },
   }));

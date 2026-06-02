@@ -41,6 +41,14 @@ program
     const config = await loadConfig();
     const files = findTestFiles(path.resolve(dir));
 
+    const globalDockStore: Record<string, any> = {};
+
+    let totalPassed = 0;
+    let totalFailed = 0;
+    let totalSkipped = 0;
+
+    const globalStart = performance.now();
+
     const runFile = (file: string) =>
       new Promise<void>((resolve) => {
         const fileName = path.basename(file);
@@ -51,9 +59,18 @@ program
           workerData: { filePath: file, discoverOnly: true },
         });
 
+        let isDiscoverFinished = false;
+
         discoverWorker.on('message', async (discoverMsg) => {
           if (discoverMsg.type === 'DISCOVERED') {
-            const targetTests = discoverMsg.tests;
+            isDiscoverFinished = true;
+            const targetTests = discoverMsg.tests || [];
+
+            if (targetTests.length === 0) {
+              discoverWorker.terminate();
+              resolve();
+              return;
+            }
 
             for (const target of targetTests) {
               await new Promise<void>((nextTestResolve) => {
@@ -64,6 +81,7 @@ program
                     filePath: file,
                     targetTestName: target.name,
                     discoverOnly: false,
+                    dockStore: globalDockStore,
                   },
                 });
 
@@ -71,9 +89,7 @@ program
                   if (!isCurrentTestDone) {
                     isCurrentTestDone = true;
                     fileHasFailed = true;
-
                     executionWorker.terminate();
-
                     results.push({
                       status: 'FAIL',
                       name: target.name,
@@ -85,7 +101,9 @@ program
                 }, TEST_TIMEOUT_MS);
 
                 executionWorker.on('message', (msg) => {
-                  if (msg.type === 'RESULT') {
+                  if (msg.type === 'DOCK_ANCHOR') {
+                    globalDockStore[msg.key] = msg.data;
+                  } else if (msg.type === 'RESULT') {
                     results.push(msg);
                     if (msg.status === 'FAIL') fileHasFailed = true;
                   } else if (msg.type === 'DONE') {
@@ -113,8 +131,18 @@ program
                     nextTestResolve();
                   }
                 });
+
+                executionWorker.on('exit', () => {
+                  if (!isCurrentTestDone) {
+                    isCurrentTestDone = true;
+                    clearTimeout(timeoutTimer);
+                    nextTestResolve();
+                  }
+                });
               });
             }
+
+            discoverWorker.terminate();
 
             const badge = fileHasFailed
               ? `${COLORS.bgFail}${COLORS.bold} FAIL ${COLORS.reset}`
@@ -126,6 +154,10 @@ program
 
             let currentSuite: string | null = null;
             for (const res of results) {
+              if (res.status === 'PASS') totalPassed++;
+              if (res.status === 'FAIL') totalFailed++;
+              if (res.status === 'SKIP') totalSkipped++;
+
               if (res.suiteName !== currentSuite) {
                 currentSuite = res.suiteName;
                 if (currentSuite)
@@ -150,15 +182,32 @@ program
                 );
               }
             }
+
             resolve();
           }
         });
 
         discoverWorker.on('error', (err: Error) => {
-          console.error(
-            `\n${COLORS.bgFail}${COLORS.bold} ERROR ${COLORS.reset} ${fileName}\n  ${COLORS.red}Discovery Error: ${err.message}${COLORS.reset}`,
-          );
-          resolve();
+          if (!isDiscoverFinished) {
+            isDiscoverFinished = true;
+            console.error(
+              `\n${COLORS.bgFail}${COLORS.bold} ERROR ${COLORS.reset} ${fileName}\n  ${COLORS.red}Discovery Error: ${err.message}${COLORS.reset}`,
+            );
+            discoverWorker.terminate();
+            resolve();
+          }
+        });
+
+        discoverWorker.on('exit', (code) => {
+          if (!isDiscoverFinished) {
+            isDiscoverFinished = true;
+            if (code !== 0) {
+              console.error(
+                `\n${COLORS.bgFail}${COLORS.bold} ERROR ${COLORS.reset} ${fileName}\n  ${COLORS.red}Discovery Worker exited with code ${code}${COLORS.reset}`,
+              );
+            }
+            resolve();
+          }
         });
       });
 
@@ -173,11 +222,40 @@ program
       });
 
     await Promise.all(workers);
+
+    const globalDurationSec = (
+      (performance.now() - globalStart) /
+      1000
+    ).toFixed(2);
+    const totalTests = totalPassed + totalFailed + totalSkipped;
+
+    const failedText =
+      totalFailed > 0
+        ? `${COLORS.red}${COLORS.bold}${totalFailed} failed${COLORS.reset}`
+        : '0 failed';
+    const passedText =
+      totalPassed > 0
+        ? `${COLORS.green}${COLORS.bold}${totalPassed} passed${COLORS.reset}`
+        : '0 passed';
+    const skippedText =
+      totalSkipped > 0
+        ? `, ${COLORS.gray}${totalSkipped} skipped${COLORS.reset}`
+        : '';
+
     console.log(`\n${COLORS.bold}Done!${COLORS.reset}\n`);
+
+    console.log(
+      `${COLORS.bold}Tests:${COLORS.reset}       ${failedText}, ${passedText}${skippedText}, ${totalTests} total`,
+    );
+    console.log(
+      `${COLORS.bold}Time:${COLORS.reset}        ${globalDurationSec}s`,
+    );
   });
 
 function findTestFiles(dir: string): string[] {
   let results: string[] = [];
+  if (!fs.existsSync(dir)) return results;
+
   for (const file of fs.readdirSync(dir)) {
     const fullPath = path.join(dir, file);
     if (fs.statSync(fullPath).isDirectory()) {

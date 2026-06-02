@@ -36,7 +36,9 @@ async function run() {
   const { filePath, targetTestName, discoverOnly } = workerData;
 
   try {
-    await import(pathToFileURL(filePath).href);
+    const cacheBusterUrl = `${pathToFileURL(filePath).href}?update=${Date.now()}`;
+    await import(cacheBusterUrl);
+
     const tests = getTests();
 
     if (discoverOnly) {
@@ -51,7 +53,14 @@ async function run() {
     const t = tests.find((test: any) => test.name === targetTestName);
 
     if (!t) {
-      throw new Error(`Test with name "${targetTestName}" not found in file.`);
+      parentPort?.postMessage({
+        type: 'RESULT',
+        status: 'FAIL',
+        name: targetTestName,
+        suiteName: null,
+        error: `Test Runtime Error: Test dengan nama "${targetTestName}" gagal dimuat ke thread eksekusi (rawTests kosong).`,
+      });
+      return;
     }
 
     if ((t as any).skip) {
@@ -86,7 +95,13 @@ async function run() {
       });
     }
   } catch (err: any) {
-    parentPort?.postMessage({ type: 'ERROR', message: err.message });
+    parentPort?.postMessage({
+      type: 'RESULT',
+      status: 'FAIL',
+      name: targetTestName || 'File Initialization',
+      suiteName: null,
+      error: err.message,
+    });
   } finally {
     parentPort?.postMessage({ type: 'DONE' });
   }
