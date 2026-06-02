@@ -20,9 +20,14 @@ const workerPath = path.join(distDir, 'worker.js');
 const COLORS = {
   green: '\x1b[32m',
   red: '\x1b[31m',
+  white: '\x1b[37m',
   bold: '\x1b[1m',
+  whiteBold: '\x1b[1m\x1b[37m',
   reset: '\x1b[0m',
   gray: '\x1b[90m',
+  bgPass: '\x1b[42m\x1b[30m',
+  bgFail: '\x1b[41m\x1b[37m',
+  bgWhite: '\x1b[47m\x1b[30m',
 };
 
 const program = new Command();
@@ -37,7 +42,8 @@ program
     const runFile = (file: string) =>
       new Promise<void>((resolve) => {
         const fileName = path.basename(file);
-        console.log(`\n${COLORS.bold} PASS ${COLORS.reset} ${fileName}`);
+        const results: any[] = [];
+        let fileHasFailed = false;
 
         const worker = new Worker(workerPath, {
           workerData: { filePath: file },
@@ -45,32 +51,59 @@ program
 
         worker.on('error', (err: Error) => {
           console.error(
-            `${COLORS.red}Worker Error: ${err.message}${COLORS.reset}`,
+            `\n${COLORS.bgFail}${COLORS.bold} ERROR ${COLORS.reset} ${fileName}\n  ${COLORS.red}Worker Error: ${err.message}${COLORS.reset}`,
           );
           resolve();
         });
 
         worker.on('message', (msg) => {
           if (msg.type === 'RESULT') {
-            if (msg.status === 'PASS') {
-              console.log(
-                `  ${COLORS.green}●${COLORS.reset} ${msg.name} ${COLORS.gray}(${msg.duration})${COLORS.reset}`,
-              );
-            } else {
-              console.log(`  ${COLORS.red}●${COLORS.reset} ${msg.name}`);
-              console.log(
-                `    ${COLORS.red}Error: ${msg.error}${COLORS.reset}\n`,
-              );
-              if (msg.stack)
-                console.log(
-                  `    ${COLORS.gray}${msg.stack.split('\n')[1].trim()}${COLORS.reset}`,
-                );
+            results.push(msg);
+            if (msg.status === 'FAIL') {
+              fileHasFailed = true;
             }
           } else if (msg.type === 'DONE') {
+            const badge = fileHasFailed
+              ? `${COLORS.bgFail}${COLORS.bold} FAIL ${COLORS.reset}`
+              : `${COLORS.bgPass}${COLORS.bold} PASS ${COLORS.reset}`;
+
+            console.log(
+              `\n${badge} ${COLORS.gray}${path.relative(process.cwd(), file)}${COLORS.reset}`,
+            );
+
+            let currentSuite: string | null = null;
+
+            for (const res of results) {
+              if (res.suiteName !== currentSuite) {
+                currentSuite = res.suiteName;
+                if (currentSuite) {
+                  console.log(`  ${COLORS.bold}${currentSuite}${COLORS.reset}`);
+                }
+              }
+
+              const indent = res.suiteName ? '    ' : '  ';
+
+              if (res.status === 'PASS') {
+                console.log(
+                  `${indent}${COLORS.green}●${COLORS.reset} ${COLORS.gray}${res.name}${COLORS.reset} ${COLORS.green}(${res.duration})${COLORS.reset}`,
+                );
+              } else if (res.status === 'FAIL') {
+                console.log(
+                  `${indent}${COLORS.red}● ${res.name}${COLORS.reset}`,
+                );
+                console.log(
+                  `${indent}  ${COLORS.red}Error: ${res.error}${COLORS.reset}`,
+                );
+              } else if (res.status === 'SKIP') {
+                console.log(
+                  `${indent}${COLORS.gray}○ ${res.name} (skipped)${COLORS.reset}`,
+                );
+              }
+            }
             resolve();
           } else if (msg.type === 'ERROR') {
             console.error(
-              `  ${COLORS.red}Worker Error: ${msg.message}${COLORS.reset}`,
+              `\n${COLORS.bgFail}${COLORS.bold} ERROR ${COLORS.reset} ${fileName}\n  ${COLORS.red}${msg.message}${COLORS.reset}`,
             );
             worker.terminate();
             resolve();

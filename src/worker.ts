@@ -31,6 +31,7 @@ if (!corePath) {
 }
 
 const { getTests } = await import(pathToFileURL(corePath).href);
+
 async function run() {
   const { filePath } = workerData;
 
@@ -39,31 +40,36 @@ async function run() {
     const tests = getTests();
 
     for (const t of tests) {
-      if (t.skip) {
+      if ((t as any).skip) {
         parentPort?.postMessage({
           type: 'RESULT',
           status: 'SKIP',
           name: t.name,
+          suiteName: t.suiteName,
         });
         continue;
       }
 
       const start = performance.now();
-      try {
-        await t.fn();
+
+      const result = await t.run();
+      const duration = `${(performance.now() - start).toFixed(2)}ms`;
+
+      if (result.passed) {
         parentPort?.postMessage({
           type: 'RESULT',
           status: 'PASS',
           name: t.name,
-          duration: `${(performance.now() - start).toFixed(2)}ms`,
+          suiteName: t.suiteName,
+          duration,
         });
-      } catch (err: any) {
+      } else {
         parentPort?.postMessage({
           type: 'RESULT',
           status: 'FAIL',
           name: t.name,
-          error: err.message,
-          stack: err.stack,
+          suiteName: t.suiteName,
+          error: result.error,
         });
       }
     }

@@ -10,6 +10,12 @@
 
 type TestFn = () => void | Promise<void>;
 
+interface TestDefinition {
+  name: string;
+  fn: TestFn;
+  suiteName: string | null;
+}
+
 const isDeepEqual = (a: any, b: any): boolean => {
   if (a === b) return true;
   if (
@@ -221,26 +227,57 @@ export const suppressConsole = <R>(
 };
 
 const GLOBAL_TEST_KEY = Symbol.for('unitry.tests');
+const GLOBAL_SUITE_KEY = Symbol.for('unitry.active_suite');
 
 if (!(globalThis as any)[GLOBAL_TEST_KEY]) {
   (globalThis as any)[GLOBAL_TEST_KEY] = [];
 }
 
-const tests = (globalThis as any)[GLOBAL_TEST_KEY];
+const rawTests: TestDefinition[] = (globalThis as any)[GLOBAL_TEST_KEY];
+
+(globalThis as any)[GLOBAL_SUITE_KEY] = null;
+
+export const describe = (name: string, fn: () => void) => {
+  const previousSuite = (globalThis as any)[GLOBAL_SUITE_KEY];
+
+  (globalThis as any)[GLOBAL_SUITE_KEY] = previousSuite
+    ? `${previousSuite} > ${name}`
+    : name;
+
+  fn();
+
+  (globalThis as any)[GLOBAL_SUITE_KEY] = previousSuite;
+};
 
 export const test = (name: string, fn: TestFn) => {
-  tests.push({
+  const currentSuite = (globalThis as any)[GLOBAL_SUITE_KEY];
+  rawTests.push({
     name,
     fn,
-    run: async () => {
-      try {
-        await fn();
-        return { name, passed: true };
-      } catch (err: any) {
-        return { name, passed: false, error: err.message };
-      }
-    },
+    suiteName: currentSuite,
   });
 };
 
-export const getTests = () => tests;
+export const getTests = () => {
+  return rawTests.map((t) => ({
+    name: t.name,
+    suiteName: t.suiteName,
+    run: async () => {
+      try {
+        await t.fn();
+        return {
+          name: t.name,
+          suiteName: t.suiteName,
+          passed: true,
+        };
+      } catch (err: any) {
+        return {
+          name: t.name,
+          suiteName: t.suiteName,
+          passed: false,
+          error: err.message,
+        };
+      }
+    },
+  }));
+};
