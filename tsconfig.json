@@ -12,8 +12,11 @@
     "esModuleInterop": true,
     "strict": true,
     "skipLibCheck": true,
-    "noEmit": true
+    "noEmit": false,
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "declarationDir": "./types"
   },
-  "include": ["./src", "./types"],
-  "exclude": ["tests"]
+  "include": ["./src/**/*",],
+  "exclude": ["./tests/**/*", "./types/**/*"]
 }

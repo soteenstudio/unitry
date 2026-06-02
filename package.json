@@ -1,7 +1,7 @@
 {
   "name": "unitry",
   "version": "v0.1.0-alpha.0",
-  "description": "A capability-based virtual machine designed for secure, predictable, and optimized bytecode execution.",
+  "description": "Zero-bloatware and minimalist unit test",
   "author": "SoTeen Studio",
   "license": "Apache-2.0",
   "publishConfig": {
@@ -22,7 +22,7 @@
   "types": "./types/index.d.ts",
   "exports": {
     ".": {
-      "types": "./types/index.d.ts",
+      "types": "./types/core.d.ts",
       "import": "./dist/core.mjs",
       "require": "./dist/core.cjs"
     },
@@ -62,9 +62,7 @@
     "typescript"
   ],
   "dependencies": {
-    "chalk": "^5.6.2",
-    "commander": "^15.0.0",
-    "unitry": "file:unitry-v0.1.0-alpha.0.tgz"
+    "commander": "^15.0.0"
   },
   "devDependencies": {
     "@commitlint/cli": "^21.0.1",
