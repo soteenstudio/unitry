@@ -33,45 +33,57 @@ if (!corePath) {
 const { getTests } = await import(pathToFileURL(corePath).href);
 
 async function run() {
-  const { filePath } = workerData;
+  const { filePath, targetTestName, discoverOnly } = workerData;
 
   try {
     await import(pathToFileURL(filePath).href);
     const tests = getTests();
 
-    for (const t of tests) {
-      if ((t as any).skip) {
-        parentPort?.postMessage({
-          type: 'RESULT',
-          status: 'SKIP',
-          name: t.name,
-          suiteName: t.suiteName,
-        });
-        continue;
-      }
+    if (discoverOnly) {
+      const testList = tests.map((t: any) => ({
+        name: t.name,
+        suiteName: t.suiteName,
+      }));
+      parentPort?.postMessage({ type: 'DISCOVERED', tests: testList });
+      return;
+    }
 
-      const start = performance.now();
+    const t = tests.find((test: any) => test.name === targetTestName);
 
-      const result = await t.run();
-      const duration = `${(performance.now() - start).toFixed(2)}ms`;
+    if (!t) {
+      throw new Error(`Test with name "${targetTestName}" not found in file.`);
+    }
 
-      if (result.passed) {
-        parentPort?.postMessage({
-          type: 'RESULT',
-          status: 'PASS',
-          name: t.name,
-          suiteName: t.suiteName,
-          duration,
-        });
-      } else {
-        parentPort?.postMessage({
-          type: 'RESULT',
-          status: 'FAIL',
-          name: t.name,
-          suiteName: t.suiteName,
-          error: result.error,
-        });
-      }
+    if ((t as any).skip) {
+      parentPort?.postMessage({
+        type: 'RESULT',
+        status: 'SKIP',
+        name: t.name,
+        suiteName: t.suiteName,
+      });
+      return;
+    }
+
+    const start = performance.now();
+    const result = await t.run();
+    const duration = `${(performance.now() - start).toFixed(2)}ms`;
+
+    if (result.passed) {
+      parentPort?.postMessage({
+        type: 'RESULT',
+        status: 'PASS',
+        name: t.name,
+        suiteName: t.suiteName,
+        duration,
+      });
+    } else {
+      parentPort?.postMessage({
+        type: 'RESULT',
+        status: 'FAIL',
+        name: t.name,
+        suiteName: t.suiteName,
+        error: result.error,
+      });
     }
   } catch (err: any) {
     parentPort?.postMessage({ type: 'ERROR', message: err.message });

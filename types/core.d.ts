@@ -1,5 +1,5 @@
 /**
- * Copyright 2026
+ * Copyright 2026 SoTeen Studio
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -8,6 +8,14 @@
  *     http://www.apache.org/licenses/LICENSE-2.0
  */
 type TestFn = () => void | Promise<void>;
+interface MockFunction {
+    (...args: any[]): any;
+    called: boolean;
+    calls: any[][];
+    mockReturnValue: (val: any) => void;
+    mockImplementation: (implementation: (...args: any[]) => any) => void;
+}
+export declare const fn: (defaultImplementation?: (...args: any[]) => any) => MockFunction;
 declare class Expectation<T = any> {
     private actual;
     isNot: boolean;
@@ -24,9 +32,8 @@ declare class Expectation<T = any> {
         to?: any;
     }): void;
     toMatchSnapshot(expected: string): void;
-    toHaveBeenCalled(mockFn: {
-        called: boolean;
-    }): void;
+    toHaveBeenCalled(): void;
+    toHaveBeenCalledTimes(times: number): void;
     toBeWithinRange(min: number, max: number): void;
     toBeCloseTo(expected: number, precision?: number): void;
     toSatisfy(predicate: (val: T) => boolean): void;

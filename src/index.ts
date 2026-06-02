@@ -30,6 +30,8 @@ const COLORS = {
   bgWhite: '\x1b[47m\x1b[30m',
 };
 
+const TEST_TIMEOUT_MS = 5000;
+
 const program = new Command();
 
 program
@@ -45,24 +47,75 @@ program
         const results: any[] = [];
         let fileHasFailed = false;
 
-        const worker = new Worker(workerPath, {
-          workerData: { filePath: file },
+        const discoverWorker = new Worker(workerPath, {
+          workerData: { filePath: file, discoverOnly: true },
         });
 
-        worker.on('error', (err: Error) => {
-          console.error(
-            `\n${COLORS.bgFail}${COLORS.bold} ERROR ${COLORS.reset} ${fileName}\n  ${COLORS.red}Worker Error: ${err.message}${COLORS.reset}`,
-          );
-          resolve();
-        });
+        discoverWorker.on('message', async (discoverMsg) => {
+          if (discoverMsg.type === 'DISCOVERED') {
+            const targetTests = discoverMsg.tests;
 
-        worker.on('message', (msg) => {
-          if (msg.type === 'RESULT') {
-            results.push(msg);
-            if (msg.status === 'FAIL') {
-              fileHasFailed = true;
+            for (const target of targetTests) {
+              await new Promise<void>((nextTestResolve) => {
+                let isCurrentTestDone = false;
+
+                const executionWorker = new Worker(workerPath, {
+                  workerData: {
+                    filePath: file,
+                    targetTestName: target.name,
+                    discoverOnly: false,
+                  },
+                });
+
+                const timeoutTimer = setTimeout(() => {
+                  if (!isCurrentTestDone) {
+                    isCurrentTestDone = true;
+                    fileHasFailed = true;
+
+                    executionWorker.terminate();
+
+                    results.push({
+                      status: 'FAIL',
+                      name: target.name,
+                      suiteName: target.suiteName,
+                      error: `ERR_TIMEOUT: Test exceeded safe limits of ${TEST_TIMEOUT_MS}ms and was forcefully terminated.`,
+                    });
+                    nextTestResolve();
+                  }
+                }, TEST_TIMEOUT_MS);
+
+                executionWorker.on('message', (msg) => {
+                  if (msg.type === 'RESULT') {
+                    results.push(msg);
+                    if (msg.status === 'FAIL') fileHasFailed = true;
+                  } else if (msg.type === 'DONE') {
+                    if (!isCurrentTestDone) {
+                      isCurrentTestDone = true;
+                      clearTimeout(timeoutTimer);
+                      executionWorker.terminate();
+                      nextTestResolve();
+                    }
+                  }
+                });
+
+                executionWorker.on('error', (err: Error) => {
+                  if (!isCurrentTestDone) {
+                    isCurrentTestDone = true;
+                    clearTimeout(timeoutTimer);
+                    fileHasFailed = true;
+                    results.push({
+                      status: 'FAIL',
+                      name: target.name,
+                      suiteName: target.suiteName,
+                      error: `Worker Runtime Crash: ${err.message}`,
+                    });
+                    executionWorker.terminate();
+                    nextTestResolve();
+                  }
+                });
+              });
             }
-          } else if (msg.type === 'DONE') {
+
             const badge = fileHasFailed
               ? `${COLORS.bgFail}${COLORS.bold} FAIL ${COLORS.reset}`
               : `${COLORS.bgPass}${COLORS.bold} PASS ${COLORS.reset}`;
@@ -72,17 +125,14 @@ program
             );
 
             let currentSuite: string | null = null;
-
             for (const res of results) {
               if (res.suiteName !== currentSuite) {
                 currentSuite = res.suiteName;
-                if (currentSuite) {
+                if (currentSuite)
                   console.log(`  ${COLORS.bold}${currentSuite}${COLORS.reset}`);
-                }
               }
 
               const indent = res.suiteName ? '    ' : '  ';
-
               if (res.status === 'PASS') {
                 console.log(
                   `${indent}${COLORS.green}●${COLORS.reset} ${COLORS.gray}${res.name}${COLORS.reset} ${COLORS.green}(${res.duration})${COLORS.reset}`,
@@ -101,13 +151,14 @@ program
               }
             }
             resolve();
-          } else if (msg.type === 'ERROR') {
-            console.error(
-              `\n${COLORS.bgFail}${COLORS.bold} ERROR ${COLORS.reset} ${fileName}\n  ${COLORS.red}${msg.message}${COLORS.reset}`,
-            );
-            worker.terminate();
-            resolve();
           }
+        });
+
+        discoverWorker.on('error', (err: Error) => {
+          console.error(
+            `\n${COLORS.bgFail}${COLORS.bold} ERROR ${COLORS.reset} ${fileName}\n  ${COLORS.red}Discovery Error: ${err.message}${COLORS.reset}`,
+          );
+          resolve();
         });
       });
 
