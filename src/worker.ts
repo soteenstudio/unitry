@@ -12,6 +12,7 @@ import { workerData, parentPort } from 'node:worker_threads';
 import { pathToFileURL, fileURLToPath } from 'node:url';
 import path from 'node:path';
 import fs from 'node:fs';
+import { transpileToDataUrl } from './utils/transpile.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -36,7 +37,8 @@ async function run() {
   const { filePath, targetTestName, discoverOnly } = workerData;
 
   try {
-    const cacheBusterUrl = `${pathToFileURL(filePath).href}?update=${Date.now()}`;
+    const dataUrl = await transpileToDataUrl(filePath);
+    const cacheBusterUrl = `${dataUrl}#update=${Date.now()}`;
     await import(cacheBusterUrl);
 
     const tests = getTests();

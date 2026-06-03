@@ -7,4 +7,7 @@
  *
  *     http://www.apache.org/licenses/LICENSE-2.0
  */
-export {};
+/**
+ * Mentranspilasi file TS/JS menjadi Data URL berbasis Base64 menggunakan ESBuild Build API
+ */
+export declare function transpileToDataUrl(filePath: string): Promise<string>;

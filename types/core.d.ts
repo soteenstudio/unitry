@@ -7,7 +7,15 @@
  *
  *     http://www.apache.org/licenses/LICENSE-2.0
  */
-type TestFn = () => void | Promise<void>;
+interface TestContext {
+    equal: (actual: any, expected: any) => void;
+    fail: (message: string) => void;
+    dock: {
+        anchor: (key: string, data: any) => void;
+        pull: <R = any>(key: string) => R | null;
+    };
+}
+type TestFn = (ctx: TestContext) => void | Promise<void>;
 interface MockFunction {
     (...args: any[]): any;
     called: boolean;
@@ -47,13 +55,6 @@ export declare const getTests: () => {
     name: string;
     suiteName: string | null;
     run: () => Promise<{
-        name: string;
-        suiteName: string | null;
-        passed: boolean;
-        error?: undefined;
-    } | {
-        name: string;
-        suiteName: string | null;
         passed: boolean;
         error: any;
     }>;
