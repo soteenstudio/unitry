@@ -46,6 +46,8 @@ declare class Expectation<T = any> {
     toBeCloseTo(expected: number, precision?: number): void;
     toSatisfy(predicate: (val: T) => boolean): void;
     toCompleteWithin(ms: number): Promise<void>;
+    toBeDefined(): void;
+    toBeUndefined(): void;
 }
 export declare const expect: <T>(actual: T) => Expectation<T>;
 export declare const suppressConsole: <R>(fn: () => R) => R extends Promise<any> ? Promise<any> : R;

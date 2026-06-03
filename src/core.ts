@@ -271,6 +271,27 @@ class Expectation<T = any> {
       `Expected ${this.isNot ? 'not ' : ''}undefined, but got ${JSON.stringify(this.actual)}`,
     );
   }
+
+  toBeNull() {
+    this.assert(
+      this.actual === null,
+      `Expected value ${this.isNot ? 'not ' : ''}to be null, but got ${JSON.stringify(this.actual)}`,
+    );
+  }
+
+  toBeTruthy() {
+    this.assert(
+      !!this.actual,
+      `Expected value ${this.isNot ? 'not ' : ''}to be truthy, but got ${JSON.stringify(this.actual)}`,
+    );
+  }
+
+  toBeFalsy() {
+    this.assert(
+      !this.actual,
+      `Expected value ${this.isNot ? 'not ' : ''}to be falsy, but got ${JSON.stringify(this.actual)}`,
+    );
+  }
 }
 
 export const expect = <T>(actual: T) => new Expectation<T>(actual);
