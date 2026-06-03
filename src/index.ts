@@ -292,6 +292,7 @@ async function loadConfig() {
     bail: false,
     rootDir: process.cwd(),
     esbuild: {
+      packages: 'external',
       external: [],
     },
   };

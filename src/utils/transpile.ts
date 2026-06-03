@@ -52,6 +52,7 @@ export async function transpileToDataUrl(
     platform: 'node',
     target: 'es2022',
     sourcemap: 'inline',
+    packages: config?.esbuild?.packages,
 
     external: [...defaultExternals, ...userExternals],
   });
