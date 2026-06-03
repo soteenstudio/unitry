@@ -39,9 +39,12 @@ program
   .argument('<dir>', 'directory to discover tests')
   .action(async (dir) => {
     const config = await loadConfig();
-    const files = findTestFiles(path.resolve(dir));
+
+    const targetDir = path.resolve(config.rootDir, dir);
+    const files = findTestFiles(targetDir);
 
     const globalDockStore: Record<string, any> = {};
+    let shouldBail = false;
 
     let totalPassed = 0;
     let totalFailed = 0;
@@ -51,12 +54,14 @@ program
 
     const runFile = (file: string) =>
       new Promise<void>((resolve) => {
+        if (shouldBail) return resolve();
+
         const fileName = path.basename(file);
         const results: any[] = [];
         let fileHasFailed = false;
 
         const discoverWorker = new Worker(workerPath, {
-          workerData: { filePath: file, discoverOnly: true },
+          workerData: { filePath: file, discoverOnly: true, config },
         });
 
         let isDiscoverFinished = false;
@@ -66,13 +71,15 @@ program
             isDiscoverFinished = true;
             const targetTests = discoverMsg.tests || [];
 
-            if (targetTests.length === 0) {
+            if (targetTests.length === 0 || shouldBail) {
               discoverWorker.terminate();
               resolve();
               return;
             }
 
             for (const target of targetTests) {
+              if (shouldBail) break;
+
               await new Promise<void>((nextTestResolve) => {
                 let isCurrentTestDone = false;
 
@@ -82,6 +89,7 @@ program
                     targetTestName: target.name,
                     discoverOnly: false,
                     dockStore: globalDockStore,
+                    config,
                   },
                 });
 
@@ -89,23 +97,27 @@ program
                   if (!isCurrentTestDone) {
                     isCurrentTestDone = true;
                     fileHasFailed = true;
+                    if (config.bail) shouldBail = true;
                     executionWorker.terminate();
                     results.push({
                       status: 'FAIL',
                       name: target.name,
                       suiteName: target.suiteName,
-                      error: `ERR_TIMEOUT: Test exceeded safe limits of ${TEST_TIMEOUT_MS}ms and was forcefully terminated.`,
+                      error: `ERR_TIMEOUT: Test exceeded safe limits of ${config.timeout}ms and was forcefully terminated.`,
                     });
                     nextTestResolve();
                   }
-                }, TEST_TIMEOUT_MS);
+                }, config.timeout);
 
                 executionWorker.on('message', (msg) => {
                   if (msg.type === 'DOCK_ANCHOR') {
                     globalDockStore[msg.key] = msg.data;
                   } else if (msg.type === 'RESULT') {
                     results.push(msg);
-                    if (msg.status === 'FAIL') fileHasFailed = true;
+                    if (msg.status === 'FAIL') {
+                      fileHasFailed = true;
+                      if (config.bail) shouldBail = true;
+                    }
                   } else if (msg.type === 'DONE') {
                     if (!isCurrentTestDone) {
                       isCurrentTestDone = true;
@@ -121,6 +133,7 @@ program
                     isCurrentTestDone = true;
                     clearTimeout(timeoutTimer);
                     fileHasFailed = true;
+                    if (config.bail) shouldBail = true;
                     results.push({
                       status: 'FAIL',
                       name: target.name,
@@ -143,7 +156,6 @@ program
             }
 
             discoverWorker.terminate();
-
             const badge = fileHasFailed
               ? `${COLORS.bgFail}${COLORS.bold} FAIL ${COLORS.reset}`
               : `${COLORS.bgPass}${COLORS.bold} PASS ${COLORS.reset}`;
@@ -215,7 +227,7 @@ program
     const workers = Array(config.concurrency)
       .fill(null)
       .map(async () => {
-        while (queue.length > 0) {
+        while (queue.length > 0 && !shouldBail) {
           const file = queue.shift();
           if (file) await runFile(file);
         }
@@ -274,11 +286,21 @@ function findTestFiles(dir: string): string[] {
 
 async function loadConfig() {
   const configPath = path.resolve(process.cwd(), 'unitry.config.js');
+  const defaults = {
+    concurrency: 1,
+    timeout: 5000,
+    bail: false,
+    rootDir: process.cwd(),
+    esbuild: {
+      external: [],
+    },
+  };
+
   if (fs.existsSync(configPath)) {
     const config = await import(pathToFileURL(configPath).href);
-    return { concurrency: 2, ...config.default };
+    return { ...defaults, ...config.default };
   }
-  return { concurrency: 1 };
+  return defaults;
 }
 
 program.parse(process.argv);

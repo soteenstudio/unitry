@@ -34,10 +34,10 @@ if (!corePath) {
 const { getTests } = await import(pathToFileURL(corePath).href);
 
 async function run() {
-  const { filePath, targetTestName, discoverOnly } = workerData;
+  const { filePath, targetTestName, discoverOnly, config } = workerData;
 
   try {
-    const dataUrl = await transpileToDataUrl(filePath);
+    const dataUrl = await transpileToDataUrl(filePath, config);
     const cacheBusterUrl = `${dataUrl}#update=${Date.now()}`;
     await import(cacheBusterUrl);
 

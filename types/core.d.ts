@@ -58,6 +58,7 @@ export declare const expect: <T>(actual: T) => Expectation<T>;
 export declare const suppressConsole: <R>(fn: () => R) => R extends Promise<any> ? Promise<any> : R;
 export declare const describe: (name: string, fn: () => void) => void;
 export declare const test: (name: string, fn: TestFn) => void;
+export declare const it: (name: string, fn: TestFn) => void;
 export declare const getTests: () => {
     name: string;
     suiteName: string | null;
