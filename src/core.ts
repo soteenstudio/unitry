@@ -257,6 +257,20 @@ class Expectation<T = any> {
       `Expected execution to finish within ${ms}ms, but it took ${duration.toFixed(2)}ms`,
     );
   }
+
+  toBeDefined() {
+    this.assert(
+      this.actual !== undefined,
+      `Expected value ${this.isNot ? 'not ' : ''}to be defined, but got undefined`,
+    );
+  }
+
+  toBeUndefined() {
+    this.assert(
+      this.actual === undefined,
+      `Expected ${this.isNot ? 'not ' : ''}undefined, but got ${JSON.stringify(this.actual)}`,
+    );
+  }
 }
 
 export const expect = <T>(actual: T) => new Expectation<T>(actual);
