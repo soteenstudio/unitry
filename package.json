@@ -30,9 +30,7 @@
     "./core-esm": "./dist/core.mjs",
     "./core-cjs": "./dist/core.cjs"
   },
-  "bin": {
-    "unitry": "./dist/index.min.js"
-  },
+  "bin": "./dist/index.min.js",
   "files": [
     "./dist/core.mjs",
     "./dist/core.cjs",

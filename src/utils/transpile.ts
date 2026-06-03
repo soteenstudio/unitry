@@ -52,12 +52,17 @@ export async function transpileToDataUrl(
     platform: 'node',
     target: 'es2022',
     sourcemap: 'inline',
-    packages: config?.esbuild?.packages,
 
+    ...(config?.esbuild?.packages && { packages: config.esbuild.packages }),
     external: [...defaultExternals, ...userExternals],
   });
 
-  const outputText = result.outputFiles[0].text;
+  const outputFiles = result.outputFiles;
+  if (!outputFiles || outputFiles.length === 0) {
+    throw new Error('Build failed: no output files were generated.');
+  }
+
+  const outputText = outputFiles[0].text;
   const base64Code = Buffer.from(outputText).toString('base64');
   return `data:text/javascript;base64,${base64Code}`;
 }

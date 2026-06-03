@@ -31,7 +31,7 @@ for (const config of builds) {
       sourcemap: true,
       platform: 'node',
       ...config,
-      external: ["fs", "path", "esbuild"]
+      external: ["fs", "path", "esbuild", "commander"]
     })
     .catch(() => process.exit(1));
 }
