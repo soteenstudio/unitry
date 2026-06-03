@@ -292,6 +292,22 @@ class Expectation<T = any> {
       `Expected value ${this.isNot ? 'not ' : ''}to be falsy, but got ${JSON.stringify(this.actual)}`,
     );
   }
+
+  toBeGreaterThan(expected: number) {
+    const actualNum = this.actual as unknown as number;
+    this.assert(
+      actualNum > expected,
+      `Expected ${actualNum} ${this.isNot ? 'not ' : ''}to be greater than ${expected}`,
+    );
+  }
+
+  toBeLessThan(expected: number) {
+    const actualNum = this.actual as unknown as number;
+    this.assert(
+      actualNum < expected,
+      `Expected ${actualNum} ${this.isNot ? 'not ' : ''}to be less than ${expected}`,
+    );
+  }
 }
 
 export const expect = <T>(actual: T) => new Expectation<T>(actual);
