@@ -371,6 +371,8 @@ export const test = (name: string, fn: TestFn) => {
   });
 };
 
+export const it = test;
+
 export const getTests = () => {
   const clonedTests = [...rawTests];
 

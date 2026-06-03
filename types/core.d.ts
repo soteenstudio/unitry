@@ -51,6 +51,8 @@ declare class Expectation<T = any> {
     toBeNull(): void;
     toBeTruthy(): void;
     toBeFalsy(): void;
+    toBeGreaterThan(expected: number): void;
+    toBeLessThan(expected: number): void;
 }
 export declare const expect: <T>(actual: T) => Expectation<T>;
 export declare const suppressConsole: <R>(fn: () => R) => R extends Promise<any> ? Promise<any> : R;
